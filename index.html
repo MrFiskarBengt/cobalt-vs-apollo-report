@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="description"
+      content="A focused comparison of Apollo with TypeGraphQL and Cobalt, using the same Bun runtime and a small authenticated application."
+    />
+    <title>Apollo + TypeGraphQL vs Cobalt</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1b2d3b;
+        --muted: #526778;
+        --paper: #f4f7f5;
+        --panel: #fff;
+        --line: #d9e2df;
+        --blue: #0058a3;
+        --blue-soft: #e8f1f8;
+        --green: #007a5e;
+        --green-soft: #e4f2ed;
+        --amber: #8a5b00;
+        --amber-soft: #fff3d9;
+        --shadow: 0 16px 44px rgb(25 50 65 / 8%);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          16px/1.62 Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+      a {
+        color: var(--blue);
+      }
+      code,
+      pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      code {
+        font-size: 0.93em;
+      }
+      .page {
+        width: min(1120px, calc(100% - 36px));
+        margin: 0 auto;
+      }
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: clamp(44px, 8vw, 92px) 0 42px;
+      }
+      .hero::before {
+        position: absolute;
+        z-index: -1;
+        top: -140px;
+        right: -140px;
+        width: 520px;
+        height: 520px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          #dcebe6 0,
+          #dcebe6 25%,
+          transparent 70%
+        );
+        content: '';
+      }
+      .eyebrow {
+        margin: 0 0 12px;
+        color: var(--green);
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+      h1 {
+        max-width: 820px;
+        margin-bottom: 18px;
+        font-size: clamp(2.5rem, 6vw, 5.1rem);
+        letter-spacing: -0.055em;
+        line-height: 0.99;
+      }
+      h1 span {
+        color: var(--blue);
+      }
+      .lede {
+        max-width: 740px;
+        color: var(--muted);
+        font-size: 1.18rem;
+      }
+      .hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 26px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgb(255 255 255 / 75%);
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 650;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+      main {
+        padding: 0 0 70px;
+      }
+      section {
+        margin-top: 26px;
+      }
+      .section-head {
+        max-width: 770px;
+        margin: 54px 0 22px;
+      }
+      .section-head .eyebrow {
+        margin-bottom: 8px;
+      }
+      h2 {
+        margin-bottom: 8px;
+        font-size: clamp(1.65rem, 3vw, 2.4rem);
+        letter-spacing: -0.035em;
+        line-height: 1.14;
+      }
+      h3 {
+        margin-bottom: 8px;
+        font-size: 1.13rem;
+        line-height: 1.28;
+      }
+      .section-head p,
+      .subtle {
+        color: var(--muted);
+      }
+      .verdict {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.6fr);
+        gap: 28px;
+        align-items: center;
+        padding: clamp(22px, 4vw, 38px);
+        border: 1px solid #d0e1da;
+        border-radius: 22px;
+        background: linear-gradient(120deg, #fff 0%, #f0f7f3 100%);
+        box-shadow: var(--shadow);
+      }
+      .verdict h2 {
+        margin: 0;
+        font-size: clamp(1.55rem, 3.5vw, 2.5rem);
+      }
+      .verdict p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .verdict-mark {
+        color: var(--green);
+        font-size: 2rem;
+        font-weight: 850;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .card {
+        min-width: 0;
+        padding: clamp(20px, 3vw, 30px);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel);
+        box-shadow: 0 8px 24px rgb(25 50 65 / 4%);
+      }
+      .card p:last-child {
+        margin-bottom: 0;
+      }
+      .card-label {
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .stack-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+      .stack-title h3 {
+        margin: 0;
+      }
+      .tag {
+        padding: 4px 9px;
+        border-radius: 999px;
+        background: var(--blue-soft);
+        color: var(--blue);
+        font-size: 0.74rem;
+        font-weight: 750;
+        white-space: nowrap;
+      }
+      .cobalt .tag {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+      .flow {
+        display: grid;
+        gap: 8px;
+      }
+      .flow-step {
+        padding: 12px 14px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fbfcfc;
+      }
+      .flow-step strong,
+      .flow-step span {
+        display: block;
+      }
+      .flow-step span {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      .arrow {
+        padding-left: 18px;
+        color: var(--muted);
+        line-height: 1;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-top: 18px;
+      }
+      .stat {
+        padding: 17px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+      }
+      .stat strong {
+        display: block;
+        color: var(--blue);
+        font-size: 1.6rem;
+        letter-spacing: -0.03em;
+      }
+      .stat span {
+        color: var(--muted);
+        font-size: 0.87rem;
+      }
+      .code-card {
+        overflow: hidden;
+        padding: 0;
+      }
+      .code-head {
+        padding: 15px 19px;
+        border-bottom: 1px solid var(--line);
+        background: #f8faf9;
+        font-weight: 750;
+      }
+      pre {
+        overflow-x: auto;
+        margin: 0;
+        padding: 20px;
+        background: #172a38;
+        color: #e5eff5;
+        font-size: 0.82rem;
+        line-height: 1.62;
+        tab-size: 2;
+      }
+      .code-note {
+        padding: 15px 19px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .comparison {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+      }
+      .comparison th,
+      .comparison td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      .comparison th {
+        background: #edf2f0;
+        font-size: 0.86rem;
+      }
+      .comparison td:first-child {
+        width: 19%;
+        font-weight: 750;
+      }
+      .comparison tr:last-child td {
+        border-bottom: 0;
+      }
+      .status {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--amber-soft);
+        color: var(--amber);
+        font-size: 0.78rem;
+        font-weight: 750;
+      }
+      .note {
+        padding: 16px 18px;
+        border-left: 4px solid var(--amber);
+        border-radius: 0 12px 12px 0;
+        background: var(--amber-soft);
+        color: #513900;
+      }
+      .note p:last-child {
+        margin-bottom: 0;
+      }
+      .check-list {
+        display: grid;
+        gap: 10px;
+        padding: 0;
+        list-style: none;
+      }
+      .check-list li {
+        position: relative;
+        padding-left: 26px;
+      }
+      .check-list li::before {
+        position: absolute;
+        left: 0;
+        color: var(--green);
+        content: '✓';
+        font-weight: 900;
+      }
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+      .metric {
+        padding: 17px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fbfcfc;
+      }
+      .metric strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .metric span {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+      footer {
+        padding: 24px 0 42px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+      @media (max-width: 760px) {
+        .verdict,
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .metric-grid {
+          grid-template-columns: 1fr;
+        }
+        .comparison {
+          display: block;
+          overflow-x: auto;
+          white-space: normal;
+        }
+        .comparison td:first-child {
+          min-width: 115px;
+        }
+      }
+      @media (max-width: 440px) {
+        .page {
+          width: min(100% - 24px, 1120px);
+        }
+        .stats {
+          grid-template-columns: 1fr 1fr;
+        }
+        .stat {
+          padding: 13px;
+        }
+        .stat strong {
+          font-size: 1.35rem;
+        }
+        pre {
+          font-size: 0.75rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="page hero">
+      <p class="eyebrow">A focused implementation comparison</p>
+      <h1>Apollo + TypeGraphQL <span>vs Cobalt</span></h1>
+      <p class="lede">
+        Two implementations of a small, authenticated application. Both use Bun,
+        the same data functions, and the same React views. The comparison asks
+        what changes when TypeScript resolvers define the GraphQL schema.
+      </p>
+      <div class="hero-meta" aria-label="Comparison setup">
+        <span class="pill"
+          ><i class="dot" aria-hidden="true"></i> Both servers run on Bun</span
+        >
+        <span class="pill">Shared MongoDB data and access rules</span>
+        <span class="pill">User and record operations</span>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="verdict" aria-labelledby="verdict-title">
+        <div>
+          <p class="eyebrow">Summary</p>
+          <h2 id="verdict-title">
+            Cobalt reduces schema-definition steps. The speed results are mixed.
+          </h2>
+        </div>
+        <p>
+          Warm API times were close. Cobalt's process startup took longer, while
+          its client generation and browser flow had lower median times. The
+          browser measurements have small sample sizes and use development mode.
+        </p>
+      </section>
+
+      <section aria-labelledby="scope-title">
+        <div class="section-head">
+          <p class="eyebrow">01 · Scope</p>
+          <h2 id="scope-title">The sample application</h2>
+          <p>
+            The sample application loads the signed-in user, reads lists of
+            users and records, and edits a record. Both implementations support
+            the same four operations and use shared data and access rules. The
+            examples below use generic names for the sample records.
+          </p>
+        </div>
+        <div class="stats" aria-label="Scoped implementation counts">
+          <div class="stat">
+            <strong>1</strong
+            ><span
+              >TypeGraphQL resolver class in the Apollo implementation</span
+            >
+          </div>
+          <div class="stat">
+            <strong>2 + 1</strong
+            ><span>Output types and input type in that schema</span>
+          </div>
+          <div class="stat">
+            <strong>4</strong
+            ><span>Operations: three queries and one mutation</span>
+          </div>
+          <div class="stat">
+            <strong>16</strong
+            ><span>TypeGraphQL field declarations in the scoped schema</span>
+          </div>
+        </div>
+        <p class="subtle" style="margin-top: 12px">
+          Counts are from the comparison's single Apollo schema file only. They
+          include three authorization declarations and cover only the four
+          operations in this comparison.
+        </p>
+      </section>
+
+      <section aria-labelledby="architecture-title">
+        <div class="section-head">
+          <p class="eyebrow">02 · Architecture</p>
+          <h2 id="architecture-title">Same runtime, direct API services</h2>
+          <p>
+            Vite hosts the shared development UI and proxies requests to the
+            selected API. It does not authenticate or relay requests between
+            Apollo and Cobalt.
+          </p>
+        </div>
+        <div class="grid-2">
+          <article class="card">
+            <div class="stack-title">
+              <h3>Apollo + TypeGraphQL</h3>
+              <span class="tag">Explicit schema</span>
+            </div>
+            <div class="flow" aria-label="Apollo request path">
+              <div class="flow-step">
+                <strong>React + Apollo Client</strong
+                ><span>Generated documents, hooks, normalized cache</span>
+              </div>
+              <div class="arrow" aria-hidden="true">↓</div>
+              <div class="flow-step">
+                <strong>Vite development proxy</strong
+                ><span>Shared UI hosting and request routing</span>
+              </div>
+              <div class="arrow" aria-hidden="true">↓</div>
+              <div class="flow-step">
+                <strong>Bun + Express 5 + Apollo Server</strong
+                ><span
+                  >TypeGraphQL schema, authorization, domain functions</span
+                >
+              </div>
+            </div>
+          </article>
+          <article class="card cobalt">
+            <div class="stack-title">
+              <h3>Cobalt</h3>
+              <span class="tag">Inferred schema</span>
+            </div>
+            <div class="flow" aria-label="Cobalt request path">
+              <div class="flow-step">
+                <strong>React + TanStack Query</strong
+                ><span>Generated Cobalt SDK, hooks, query cache</span>
+              </div>
+              <div class="arrow" aria-hidden="true">↓</div>
+              <div class="flow-step">
+                <strong>Vite development proxy</strong
+                ><span>Same shared UI hosting and request routing</span>
+              </div>
+              <div class="arrow" aria-hidden="true">↓</div>
+              <div class="flow-step">
+                <strong>Bun + Cobalt</strong
+                ><span
+                  >Typed operations infer the schema, then call shared domain
+                  functions</span
+                >
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="code-title">
+        <div class="section-head">
+          <p class="eyebrow">03 · What changes in code</p>
+          <h2 id="code-title">
+            One explicit schema layer versus typed operations
+          </h2>
+          <p>
+            Apollo keeps the GraphQL contract visible in decorators and resolver
+            methods. Cobalt uses each operation's TypeScript input and return
+            types to infer that contract.
+          </p>
+        </div>
+        <div class="grid-2">
+          <article class="card code-card">
+            <div class="code-head">
+              Apollo · schema and resolver are separate declarations
+            </div>
+            <pre><code>@ObjectType()
+class Item {
+  @Field(() =&gt; String) id!: string
+  @Field(() =&gt; String) name!: string
+}</code></pre>
+            <div class="code-head">Apollo · resolver</div>
+            <pre><code>@Authorized(/* allowed roles */)
+@Query(() =&gt; [Item])
+items(@Ctx() context: Context) {
+  return listItems(context.user)
+}</code></pre>
+            <div class="code-note">
+              This illustrative example declares the GraphQL fields and resolver
+              authorization explicitly; implementation names are generalized.
+            </div>
+          </article>
+          <article class="card code-card cobalt">
+            <div class="code-head">
+              Cobalt · operation types form the schema source
+            </div>
+            <pre><code>export async function Query(): Promise&lt;Item[]&gt; {
+  const context = $$ctx(this)
+  return listItems(context.user)
+}</code></pre>
+            <div class="code-note">
+              The TypeScript operation signature is used to infer the GraphQL
+              contract and generate the client SDK.
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="comparison-title">
+        <div class="section-head">
+          <p class="eyebrow">04 · Findings</p>
+          <h2 id="comparison-title">Implementation trade-offs</h2>
+        </div>
+        <div style="overflow-x: auto">
+          <table class="comparison">
+            <thead>
+              <tr>
+                <th scope="col">Area</th>
+                <th scope="col">Apollo + TypeGraphQL</th>
+                <th scope="col">Cobalt</th>
+                <th scope="col">Assessment</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Server contract</td>
+                <td>
+                  Decorated output/input classes plus resolver methods and
+                  registration.
+                </td>
+                <td>
+                  Typed operation functions; schema and SDK are generated from
+                  them.
+                </td>
+                <td>
+                  Less schema boilerplate with Cobalt; Apollo makes each
+                  contract choice explicit.
+                </td>
+              </tr>
+              <tr>
+                <td>Client setup</td>
+                <td>
+                  Apollo Client includes React hooks, normalized caching, and
+                  mutation/refetch behavior.
+                </td>
+                <td>
+                  Cobalt provides the SDK; TanStack Query supplies React hooks,
+                  caching, and invalidation.
+                </td>
+                <td>
+                  Apollo uses one client package for GraphQL, hooks, and cache.
+                  Cobalt adds a separate query/cache layer; query usage is
+                  similar once hooks exist.
+                </td>
+              </tr>
+              <tr>
+                <td>Change surface</td>
+                <td>
+                  A change can touch schema, resolver, document, generated
+                  operation types, and tests.
+                </td>
+                <td>
+                  A change can touch the operation/domain type, generated SDK,
+                  query hook, and tests.
+                </td>
+                <td>
+                  Cobalt removes a schema authoring step. The effect on real
+                  change time remains unmeasured.
+                </td>
+              </tr>
+              <tr>
+                <td>Regression checks</td>
+                <td>
+                  Schema validation, generated operation types, and parity
+                  tests.
+                </td>
+                <td>Generated SDK types and the same behavior/parity tests.</td>
+                <td>
+                  All 12 comparison integration tests pass. This supports the
+                  scoped behavior, not broader coverage.
+                </td>
+              </tr>
+              <tr>
+                <td>Debugging</td>
+                <td>Explicit schema and mature GraphQL/Apollo tooling.</td>
+                <td>
+                  Operations stay close to TypeScript; generated schema and SDK
+                  add framework-specific artifacts.
+                </td>
+                <td>
+                  Both are debuggable; the failure path and time-to-diagnose
+                  need a measured exercise.
+                </td>
+              </tr>
+              <tr>
+                <td>Performance</td>
+                <td>Direct warm p50: 2.3–4.0 ms; p95: 3.2–5.9 ms.</td>
+                <td>Direct warm p50: 2.3–4.0 ms; p95: 3.1–6.0 ms.</td>
+                <td>
+                  Medians are close; p95 varies by operation. The measurements
+                  do not establish an overall API speed advantage.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="security-title">
+        <div class="section-head">
+          <p class="eyebrow">05 · Security and scope</p>
+          <h2 id="security-title">
+            The important user checks are shared; HTTP controls differ
+          </h2>
+          <p>
+            Both services authenticate requests and enforce server-side access
+            rules. The initial HTML includes a partial user for quick display
+            and is marked <code>no-store</code>; each client refreshes the user
+            in the background.
+          </p>
+        </div>
+        <div class="grid-2">
+          <article class="card">
+            <h3>Controls in this local comparison</h3>
+            <ul class="check-list">
+              <li>
+                Both APIs listen on loopback and require the expected
+                same-origin request.
+              </li>
+              <li>Both authenticate requests and reload user information.</li>
+              <li>Both enforce the same authorization rules.</li>
+              <li>
+                Apollo requires persisted operations, caps JSON bodies, and
+                applies depth/complexity limits.
+              </li>
+              <li>
+                Cobalt applies same-origin, a 32 KB body cap, introspection
+                blocking, and 401 responses for expired sessions.
+              </li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Known boundary</h3>
+            <p>
+              Cobalt's CLI does not expose Apollo-equivalent persisted-query,
+              depth, or complexity controls. The Cobalt guard is a small local
+              Bun adapter, and the service is loopback-only. This prototype is
+              not a production deployment or a security audit.
+            </p>
+            <p class="subtle">
+              The test identity header is enabled only in the explicitly
+              configured local end-to-end test mode.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="performance-title">
+        <div class="section-head">
+          <p class="eyebrow">06 · Performance result</p>
+          <h2 id="performance-title">
+            Startup, generation, and request measurements
+          </h2>
+          <p>
+            Both API processes ran under Bun 1.4.2 on macOS arm64 with the same
+            local MongoDB fixture (100 users and 100 records). Direct request
+            timings bypassed Vite. The numbers below are medians unless marked
+            p95.
+          </p>
+        </div>
+        <div style="overflow-x: auto">
+          <table class="comparison">
+            <thead>
+              <tr>
+                <th scope="col">Measurement</th>
+                <th scope="col">Apollo + TypeGraphQL</th>
+                <th scope="col">Cobalt</th>
+                <th scope="col">What it says</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Process to ready</td>
+                <td>236 ms median (3 samples)</td>
+                <td>800 ms median (3 samples)</td>
+                <td>Cobalt took about 3.4× as long in this small service.</td>
+              </tr>
+              <tr>
+                <td>Schema / operation work</td>
+                <td>TypeGraphQL schema build: 11.3 ms</td>
+                <td>Operation generation: 360 ms; SDK stage: 2.0 ms</td>
+                <td>These are different stages; keep them separate.</td>
+              </tr>
+              <tr>
+                <td>Client code generation</td>
+                <td>2,993 ms median total command time</td>
+                <td>1,325 ms median total command time</td>
+                <td>
+                  Cobalt command was about 2.3× faster; both totals include
+                  command and tool startup.
+                </td>
+              </tr>
+              <tr>
+                <td>Warm direct API</td>
+                <td colspan="2">
+                  10 warmups, then 50 sequential requests per operation. p50 /
+                  p95:
+                  <br />
+                  <code>me</code> 2.68 / 3.17 ms vs 2.71 / 5.02 ms ·
+                  <code>users</code> 2.61 / 4.46 ms vs 2.28 / 4.78 ms ·
+                  <code>records</code> 4.02 / 5.90 ms vs 3.96 / 6.03 ms ·
+                  <code>update</code> 2.30 / 3.45 ms vs 2.29 / 3.06 ms
+                </td>
+                <td>
+                  Order is Apollo, then Cobalt. Medians are close; p95 varies by
+                  operation.
+                </td>
+              </tr>
+              <tr>
+                <td>First current-user request</td>
+                <td>40.8 ms</td>
+                <td>36.5 ms</td>
+                <td>
+                  One first request per process; not a balanced cold-request
+                  test.
+                </td>
+              </tr>
+              <tr>
+                <td>Request body bytes</td>
+                <td>163–246 bytes per operation</td>
+                <td>178–296 bytes per operation</td>
+                <td>
+                  Apollo sends persisted hashes; Cobalt sends query documents.
+                </td>
+              </tr>
+              <tr>
+                <td>Response body bytes</td>
+                <td>213–20,939 bytes</td>
+                <td>212–20,938 bytes</td>
+                <td>
+                  Matched direct API operations return essentially the same
+                  amount.
+                </td>
+              </tr>
+              <tr>
+                <td>Browser flow via Vite</td>
+                <td>
+                  Partial user 864 ms · record list 868 ms · user list 947 ms ·
+                  edit+refresh 129 ms
+                </td>
+                <td>
+                  Partial user 386 ms · record list 464 ms · user list 546 ms ·
+                  edit+refresh 96 ms
+                </td>
+                <td>
+                  Three measured page loads per implementation; one Cobalt
+                  sample was substantially slower. The medians are preliminary.
+                </td>
+              </tr>
+              <tr>
+                <td>Whole browser flow</td>
+                <td>
+                  5 API calls · 1,282 request bytes · 59,831 response bytes
+                </td>
+                <td>5 API calls · 741 request bytes · 53,607 response bytes</td>
+                <td>
+                  Actual client selections differ, so these byte totals are not
+                  a same-document comparison.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note" style="margin-top: 16px">
+          <p>
+            <strong>Database timing:</strong> the record-list MongoDB span was
+            about 2.9 ms in both servers, the largest measured server span. It
+            includes three serial reads. Resolver and database spans overlap, so
+            do not add them together. The Cobalt runtime does not expose a
+            parser/validation timing hook in this setup.
+          </p>
+          <p>
+            <strong>Schema validation:</strong> startup schema construction and
+            Cobalt operation generation are measured above. Request-time parsing
+            and validation are not isolated: Apollo's execution timing combines
+            stages, and Cobalt exposes no equivalent stage hook here. The
+            measurements cannot establish which validates requests faster.
+          </p>
+          <p>
+            <strong>Read the results with care:</strong> startup and codegen
+            have three samples each; browser flow has three fresh-page samples
+            per client after one warmup. Browser measurements use Vite
+            development mode. API body sizes are uncompressed JSON and exclude
+            headers. The labels identify equivalent operations; the direct API
+            request documents use equivalent selected fields, while Apollo uses
+            persisted-query hashes and Cobalt sends the full document. No
+            network-compressed transfer or production build was measured.
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="bottom-title">
+        <div class="section-head">
+          <p class="eyebrow">07 · Conclusion</p>
+          <h2 id="bottom-title">Interpretation</h2>
+        </div>
+        <div class="verdict">
+          <div>
+            <h2>
+              Cobalt uses fewer schema declarations. API medians are close;
+              startup and browser measurements differ.
+            </h2>
+          </div>
+          <p>
+            The results describe this implementation and fixture. Cobalt had a
+            longer startup median and a shorter client generation median. Direct
+            API medians were close; browser medians were lower for Cobalt, with
+            substantial variation in a small sample. Change effort and debugging
+            time have not been measured.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="page">
+      Standalone report · Self-contained HTML · No repository access, scripts,
+      fonts, images, or external data required.
+    </footer>
+  </body>
+</html>
